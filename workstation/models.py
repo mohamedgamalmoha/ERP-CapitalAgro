@@ -8,6 +8,7 @@ from inventory.models import RawMaterial, Category
 
 class Workstation(models.Model):
     name = models.CharField(max_length=255, verbose_name=_('Name'))
+    description = models.TextField(null=True, blank=True, verbose_name=_('Description'))
     location = models.CharField(max_length=255, verbose_name=_('Location'))
     max_daily_capacity = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Max Daily Capacity'))
     categories_handled = models.ManyToManyField(Category, blank=True, verbose_name=_('Categories Handled'))
