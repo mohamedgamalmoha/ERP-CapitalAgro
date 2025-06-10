@@ -12,7 +12,8 @@ class CustomUserManager(UserManager):
         extra_fields.setdefault("is_active", True)
         extra_fields.setdefault("role", UserRole.ADMIN)
 
-        if extra_fields.get("role") is not UserRole.ADMIN:
+        role = extra_fields.get("role")
+        if not (role == UserRole.ADMIN or role == UserRole.ADMIN.value):
             raise ValueError(
                 _("Superuser must has admin role")
             )
