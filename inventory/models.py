@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 from accounts.models import InventoryCoordinatorUser, TransporterUser, WorkerUser
-from inventory.enums import Unit, Status
+from inventory.enums import Unit, Status, PackageType
 
 
 class Supplier(models.Model):
@@ -118,12 +118,15 @@ class ReadyMaterial(models.Model):
 
     inventory_coordinator = models.ForeignKey(InventoryCoordinatorUser, on_delete=models.CASCADE,
                                               related_name='ready_materials', verbose_name=_('Inventory Coordinator'))
-    quality_check = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(10)],
-                                                verbose_name=_('Quality Check'))
-    stored_location = models.CharField(max_length=100, null=True, blank=True, verbose_name=_('Stored Location'))
+    quality_score = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(10)],
+                                                verbose_name=_('Quality Score'))
+
     quantity = models.PositiveIntegerField(default=0, verbose_name=_('Quantity'))
     unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE, verbose_name=_('Unit'))
     note = models.TextField(null=True, blank=True, verbose_name=_('Note'))
+
+    stored_location = models.CharField(max_length=100, null=True, blank=True, verbose_name=_('Stored Location'))
+    stored_temperature = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Stored Temperature'))
 
     transporter = models.ForeignKey(TransporterUser, on_delete=models.CASCADE, related_name='delivered_ready_materials',
                                 verbose_name=_('Transporter'))
@@ -145,7 +148,12 @@ class PackagedMaterial(models.Model):
     quantity = models.PositiveIntegerField(default=0, verbose_name=_('Quantity'))
     unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE, verbose_name=_('Unit'))
     package_date = models.DateField(null=True, blank=True, verbose_name=_('Package Date'))
+    packaging_type = models.CharField(max_length=20, choices=PackageType.choices, default=PackageType.BOX,
+                                      verbose_name=_('Packaging Type'))
     note = models.TextField(null=True, blank=True, verbose_name=_('Note'))
+
+    stored_location = models.CharField(max_length=100, null=True, blank=True, verbose_name=_('Stored Location'))
+    stored_temperature = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Stored Temperature'))
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))

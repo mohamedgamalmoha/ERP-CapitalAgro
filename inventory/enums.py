@@ -18,3 +18,10 @@ class Unit(models.TextChoices):
 class Status(models.TextChoices):
     ACCEPTED = 'accepted', _('Accepted')
     REJECTED = 'rejected', _('Rejected')
+
+
+class PackageType(models.TextChoices):
+    BOX = 'box', _('Box')
+    PACKET = 'packet', _('Packet')
+    BOTTLE = 'bottle', _('Bottle')
+    OTHER = 'other', _('Other')
