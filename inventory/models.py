@@ -6,11 +6,15 @@ from accounts.models import InventoryCoordinatorUser, TransporterUser, WorkerUse
 from inventory.enums import Unit, Status
 
 
-class Distributor(models.Model):
-    name = models.CharField(max_length=100, unique=True, verbose_name=_('Distributor Name'))
+class Supplier(models.Model):
+    name = models.CharField(max_length=100, unique=True, verbose_name=_('Supplier Name'))
     contact_info = models.TextField(null=True, blank=True, verbose_name=_('Contact Information'))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
+
+    class Meta:
+        verbose_name = _('Supplier')
+        verbose_name_plural = _('Suppliers')
 
     def __str__(self):
         return self.name
@@ -19,38 +23,92 @@ class Distributor(models.Model):
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name=_('Category Name'))
     description = models.TextField(null=True, blank=True, verbose_name=_('Description'))
+    requires_temperature_control = models.BooleanField(default=False, verbose_name=_('Requires Temperature Control'))
+    max_processing_time_hours = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name=_('Max Processing Time (Hours)')
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
+
+    class Meta:
+        verbose_name = _('Category')
+        verbose_name_plural = _('Categories')
 
     def __str__(self):
         return self.name
 
 
 class RawMaterial(models.Model):
-    distributor = models.ForeignKey(Distributor, on_delete=models.CASCADE, related_name='raw_materials',
-                                    verbose_name=_('Distributor'))
+    # Supplier and category
+    supplier = models.ForeignKey(
+        Supplier, on_delete=models.CASCADE, related_name='raw_materials', verbose_name=_('Supplier')
+    )
+    category = models.ForeignKey(
+        Category, on_delete=models.CASCADE, related_name='raw_materials', verbose_name=_('Category')
+    )
 
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='raw_materials',
-                                 verbose_name=_('Category'))
-    name = models.CharField(max_length=100, unique=True, verbose_name=_('Raw Material Name'))
-    quantity = models.PositiveIntegerField(default=0,
-                                           verbose_name=_('Quantity'))
+    # Material details
+    material_name = models.CharField(max_length=100, null=True, verbose_name=_('Material Name'))
+    initial_quantity = models.PositiveIntegerField(default=0, verbose_name=_('Initial Quantity'))
+    current_quantity = models.PositiveIntegerField(default=0, verbose_name=_('Current Quantity'))
     unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE, verbose_name=_('Unit'))
+
+    # Dates
+    production_date = models.DateField(null=True, blank=True, verbose_name=_('Production Date'))
     expiration_date = models.DateField(null=True, blank=True, verbose_name=_('Expiration Date'))
 
-    inventory_coordinator = models.ForeignKey(InventoryCoordinatorUser, on_delete=models.CASCADE,
-                                              related_name='raw_materials', verbose_name=_('Inventory Coordinator'))
-    quality_check = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(10)],
-                                                verbose_name=_('Quality Check'))
+    # Quality and status
+    inventory_coordinator = models.ForeignKey(
+        InventoryCoordinatorUser,
+        on_delete=models.CASCADE,
+        related_name='raw_materials',
+        verbose_name=_('Inventory Coordinator')
+    )
+    quality_score = models.PositiveIntegerField(
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(10)],
+        verbose_name=_('Quality Score'),
+        help_text=_('Quality score from 0 to 10')
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACCEPTED, verbose_name=_('Status'))
-    stored_location = models.CharField(max_length=100, null=True, blank=True, verbose_name=_('Stored Location'))
+    received_date = models.DateTimeField(auto_now_add=True, null=True, verbose_name=_('Received Date'))
     note = models.TextField(null=True, blank=True, verbose_name=_('Note'))
+
+    # Storage details
+    storage_location = models.CharField(max_length=100, null=True, verbose_name=_('Storage Location'))
+    storage_temperature = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Storage Temperature'))
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
 
+    class Meta:
+        verbose_name = _('Raw Material')
+        verbose_name_plural = _('Raw Materials')
+
+    def save(self, *args, **kwargs):
+        # Set current quantity to initial on first save
+        if not self.pk and not self.current_quantity:
+            self.current_quantity = self.initial_quantity
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return self.name
+        return self.material_name
+
+    def reduce_quantity(self, quantity):
+        if quantity > self.current_quantity:
+            raise ValueError(
+                "Not enough quantity available to reduce."
+            )
+        self.current_quantity -= quantity
+        self.save()
+
+    def increase_quantity(self, quantity):
+        if quantity < 0:
+            raise ValueError(
+                "Cannot increase quantity by a negative amount."
+            )
+        self.current_quantity += quantity
+        self.save()
 
 
 class ReadyMaterial(models.Model):
@@ -59,7 +117,7 @@ class ReadyMaterial(models.Model):
                                                  verbose_name=_('Raw Material'))
 
     inventory_coordinator = models.ForeignKey(InventoryCoordinatorUser, on_delete=models.CASCADE,
-                                              related_name='raw_materials', verbose_name=_('Inventory Coordinator'))
+                                              related_name='ready_materials', verbose_name=_('Inventory Coordinator'))
     quality_check = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(10)],
                                                 verbose_name=_('Quality Check'))
     stored_location = models.CharField(max_length=100, null=True, blank=True, verbose_name=_('Stored Location'))
@@ -67,7 +125,7 @@ class ReadyMaterial(models.Model):
     unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE, verbose_name=_('Unit'))
     note = models.TextField(null=True, blank=True, verbose_name=_('Note'))
 
-    transporter = models.ForeignKey(TransporterUser, on_delete=models.CASCADE, related_name='ready_materials',
+    transporter = models.ForeignKey(TransporterUser, on_delete=models.CASCADE, related_name='delivered_ready_materials',
                                 verbose_name=_('Transporter'))
     delivery_date = models.DateField(null=True, blank=True, verbose_name=_('Delivery Date'))
 
