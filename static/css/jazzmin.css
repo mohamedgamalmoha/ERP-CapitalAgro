@@ -1,0 +1,22 @@
+/*
+    RTL Support
+*/
+
+body {
+    direction: ltr !important;;
+    text-align: left !important;
+}
+
+.dropdown-footer{
+    display: none !important;
+    visibility: hidden !important;
+}
+
+.login-logo img {
+    width: 90%
+}
+
+.brand-image {
+    border-radius: 5px;
+    width: 50px;
+}
