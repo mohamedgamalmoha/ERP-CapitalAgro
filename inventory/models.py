@@ -125,8 +125,8 @@ class ReadyMaterial(models.Model):
     unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE, verbose_name=_('Unit'))
     note = models.TextField(null=True, blank=True, verbose_name=_('Note'))
 
-    stored_location = models.CharField(max_length=100, null=True, blank=True, verbose_name=_('Stored Location'))
-    stored_temperature = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Stored Temperature'))
+    storage_location = models.CharField(max_length=100, null=True, blank=True, verbose_name=_('Stored Location'))
+    storage_temperature = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Stored Temperature'))
 
     transporter = models.ForeignKey(TransporterUser, on_delete=models.CASCADE, related_name='delivered_ready_materials',
                                 verbose_name=_('Transporter'))
@@ -148,12 +148,12 @@ class PackagedMaterial(models.Model):
     quantity = models.PositiveIntegerField(default=0, verbose_name=_('Quantity'))
     unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE, verbose_name=_('Unit'))
     package_date = models.DateField(null=True, blank=True, verbose_name=_('Package Date'))
-    packaging_type = models.CharField(max_length=20, choices=PackageType.choices, default=PackageType.BOX,
+    package_type = models.CharField(max_length=20, choices=PackageType.choices, default=PackageType.BOX,
                                       verbose_name=_('Packaging Type'))
     note = models.TextField(null=True, blank=True, verbose_name=_('Note'))
 
-    stored_location = models.CharField(max_length=100, null=True, blank=True, verbose_name=_('Stored Location'))
-    stored_temperature = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Stored Temperature'))
+    storage_location = models.CharField(max_length=100, null=True, blank=True, verbose_name=_('Stored Location'))
+    storage_temperature = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Stored Temperature'))
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
