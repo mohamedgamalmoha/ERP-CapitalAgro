@@ -22,9 +22,7 @@ class WorkstationFactory(factory.django.DjangoModelFactory):
 
 class EquipmentFactory(factory.django.DjangoModelFactory):
     workstation = factory.SubFactory(WorkstationFactory)
-    name = factory.LazyAttribute(
-        lambda obj: factory.Faker('food_workstation_equipment', workstation=obj.workstation.name)
-    )
+    name = factory.Faker('food_workstation_equipment', category=factory.SelfAttribute('..workstation.name'))
     last_maintenance_date = factory.Faker('date_time_this_year', before_now=True)
     calibration_date = factory.Faker('date_time_this_year', before_now=True)
 

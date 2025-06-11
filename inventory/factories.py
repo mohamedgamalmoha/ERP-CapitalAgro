@@ -318,9 +318,7 @@ class RawMaterialFactory(factory.django.DjangoModelFactory):
     supplier = factory.SubFactory(SupplierFactory)
     category = factory.SubFactory(CategoryFactory)
 
-    material_name = factory.LazyAttribute(
-        lambda obj: factory.Faker('food_material', category=obj.category.name)
-    )
+    material_name = factory.Faker('food_material', category=factory.SelfAttribute('..category.name'))
     initial_quantity = factory.Faker('random_int', min=1, max=1000, step=1)
     current_quantity = factory.SelfAttribute('initial_quantity')
     unit = factory.Faker('random_element', elements=Unit.choices)
