@@ -210,7 +210,14 @@ class PackagedMaterial(models.Model):
     package_date = models.DateField(null=True, blank=True, verbose_name=_('Package Date'))
     package_type = models.CharField(max_length=20, choices=PackageType.choices, default=PackageType.BOX,
                                       verbose_name=_('Packaging Type'))
+    package_quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)], null=True,
+                                                   verbose_name=_('Package Quantity'))
+    package_unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE,
+                                    verbose_name=_('Package Unit'))
     note = models.TextField(null=True, blank=True, verbose_name=_('Note'))
+
+    production_date = models.DateField(null=True, blank=True, verbose_name=_('Production Date'))
+    expiration_date = models.DateField(null=True, blank=True, verbose_name=_('Expiration Date'))
 
     storage_location = models.CharField(max_length=100, null=True, blank=True, verbose_name=_('Stored Location'))
     storage_temperature = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Stored Temperature'))
@@ -229,8 +236,15 @@ class PackagedMaterial(models.Model):
         # Ensure packaged quantity doesn't exceed ready material quantity
         if self.quantity > self.ready_material.current_quantity:
             raise ValidationError(
-                {'quantity': f'Only {self.ready_material.quantity} units available.'}
+                {'quantity': f'Only {self.ready_material.current_quantity} units available.'}
             )
+
+        # Validate expiration date is after production date
+        if self.production_date and self.expiration_date:
+            if self.expiration_date <= self.production_date:
+                raise ValidationError(
+                    {'expiration_date': 'Expiration date must be after production date.'}
+                )
 
     def save(self, *args, **kwargs):
         self.full_clean()

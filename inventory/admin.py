@@ -81,7 +81,12 @@ class PackagedMaterialAdmin(admin.ModelAdmin):
     fieldsets = (
         (
             _("General info"),
-            {"fields": ("quantity", "unit", "package_date", "package_type")},
+            {"fields": ("ready_material", "quantity", "unit")},
+        ),
+        (
+            _('Packing Info'),
+            {'fields': ("package_date", "package_type", "package_quantity", "package_unit", "production_date",
+                        "expiration_date")}
         ),
         (
             _("Worker info"),
