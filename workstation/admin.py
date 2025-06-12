@@ -45,6 +45,7 @@ class WorkstationRawMaterialConsumptionAdmin(admin.ModelAdmin):
 
 @admin.register(WorkstationPreparedMaterial)
 class WorkstationPreparedMaterialAdmin(admin.ModelAdmin):
-    list_display = ('workstation', 'quantity', 'unit', 'preparation_date', 'created_at', 'updated_at')
+    list_display = ('workstation_raw_material_consumption', 'quantity', 'unit', 'preparation_date',
+                    'created_at', 'updated_at')
     readonly_fields = ('created_at', 'updated_at')
-    list_filter = ('workstation', 'unit')
+    list_filter = ('unit', )

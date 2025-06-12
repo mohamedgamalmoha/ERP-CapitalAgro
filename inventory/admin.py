@@ -22,7 +22,7 @@ class CategoryAdmin(admin.ModelAdmin):
 class RawMaterialAdmin(admin.ModelAdmin):
     list_display = ('material_name', 'category', 'supplier', 'current_quantity', 'unit', 'created_at', 'updated_at')
     list_filter = ('unit', 'status')
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('current_quantity', 'created_at', 'updated_at')
     fieldsets = (
         (
             _("General info"),
@@ -46,13 +46,13 @@ class RawMaterialAdmin(admin.ModelAdmin):
 
 @admin.register(ReadyMaterial)
 class ReadyMaterialAdmin(admin.ModelAdmin):
-    list_display = ('workstation_raw_material', 'quantity', 'unit', 'created_at', 'updated_at')
+    list_display = ('workstation_prepared_material', 'initial_quantity', 'unit', 'created_at', 'updated_at')
     list_filter = ('unit',)
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('current_quantity', 'created_at', 'updated_at')
     fieldsets = (
         (
             _("General info"),
-            {"fields": ("workstation_raw_material", "quantity", "unit")},
+            {"fields": ("workstation_prepared_material", "initial_quantity", "current_quantity", "unit")},
         ),
         (
             _("Coordinator info"),
@@ -81,7 +81,7 @@ class PackagedMaterialAdmin(admin.ModelAdmin):
     fieldsets = (
         (
             _("General info"),
-            {"fields": ("quantity", "unit", "packaging_date", "packaging_type")},
+            {"fields": ("quantity", "unit", "package_date", "package_type")},
         ),
         (
             _("Worker info"),
