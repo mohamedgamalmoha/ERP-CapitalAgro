@@ -100,7 +100,7 @@ class WorkstationRawMaterialConsumption(models.Model):
                 )
 
     def save(self, *args, **kwargs):
-        self.full_clean()
+        self.clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -142,7 +142,7 @@ class WorkstationPreparedMaterial(models.Model):
                 )
 
     def save(self, *args, **kwargs):
-        self.full_clean()
+        self.clean()
         super().save(*args, **kwargs)
 
     def __str__(self):

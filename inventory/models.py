@@ -118,7 +118,7 @@ class RawMaterial(models.Model):
         # Set current quantity to initial on first save
         if not self.pk and not self.current_quantity:
             self.current_quantity = self.initial_quantity
-        self.full_clean()
+        self.clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -191,7 +191,7 @@ class ReadyMaterial(models.Model):
         # Set current quantity to initial on first save
         if not self.pk and not self.current_quantity:
             self.current_quantity = self.initial_quantity
-        self.full_clean()
+        self.clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -234,10 +234,11 @@ class PackagedMaterial(models.Model):
 
     def clean(self):
         # Ensure packaged quantity doesn't exceed ready material quantity
-        if self.quantity > self.ready_material.current_quantity:
-            raise ValidationError(
-                {'quantity': f'Only {self.ready_material.current_quantity} units available.'}
-            )
+        if self.ready_material:
+            if self.quantity > self.ready_material.current_quantity:
+                raise ValidationError(
+                    {'quantity': f'Only {self.ready_material.current_quantity} units available.'}
+                )
 
         # Validate expiration date is after production date
         if self.production_date and self.expiration_date:
@@ -247,7 +248,7 @@ class PackagedMaterial(models.Model):
                 )
 
     def save(self, *args, **kwargs):
-        self.full_clean()
+        self.clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
