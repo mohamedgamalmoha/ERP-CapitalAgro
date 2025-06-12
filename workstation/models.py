@@ -88,6 +88,3 @@ class WorkstationPreparedMaterial(models.Model):
         verbose_name = _('Workstation Prepared Material')
         verbose_name_plural = _('Workstation Prepared Materials')
         unique_together = ('workstation', 'raw_material')
-
-    def __str__(self):
-        return f"{self.workstation.name} - {self.raw_material.name} ({self.quantity})"
