@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
 
@@ -71,7 +72,7 @@ class RawMaterial(models.Model):
         help_text=_('Quality score from 0 to 10')
     )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACCEPTED, verbose_name=_('Status'))
-    received_date = models.DateTimeField(auto_now_add=True, null=True, verbose_name=_('Received Date'))
+    received_date = models.DateTimeField(default=timezone.now, blank=True, null=True, verbose_name=_('Received Date'))
     note = models.TextField(null=True, blank=True, verbose_name=_('Note'))
 
     # Storage details
@@ -134,9 +135,6 @@ class ReadyMaterial(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
-
-    def __str__(self):
-        return f"{self.workstation_raw_material.name} - {self.quantity} {self.unit}"
 
 
 class PackagedMaterial(models.Model):
