@@ -112,7 +112,7 @@ class WorkstationPreparedMaterial(models.Model):
     workstation_raw_material_consumption = models.OneToOneField(WorkstationRawMaterialConsumption,
                                                                  on_delete=models.CASCADE, null=True,
                                                                 verbose_name=_('Workstation Raw Material Consumption'))
-    quantity = models.PositiveIntegerField(verbose_name=_('Quantity'))
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)], verbose_name=_('Quantity'))
     unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE, verbose_name=_('Unit'))
     preparation_date = models.DateTimeField(default=timezone.now, null=True, blank=True,
                                             verbose_name=_('Preparation Date'))

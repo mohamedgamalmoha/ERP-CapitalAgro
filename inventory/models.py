@@ -61,7 +61,7 @@ class RawMaterial(models.Model):
 
     # Material details
     material_name = models.CharField(max_length=100, null=True, verbose_name=_('Material Name'))
-    initial_quantity = models.PositiveIntegerField(default=0, verbose_name=_('Initial Quantity'))
+    initial_quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)], verbose_name=_('Initial Quantity'))
     current_quantity = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Current Quantity'))
     unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE, verbose_name=_('Unit'))
 
@@ -153,7 +153,8 @@ class ReadyMaterial(models.Model):
     quality_score = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(10)],
                                                 verbose_name=_('Quality Score'))
 
-    initial_quantity = models.PositiveIntegerField(default=0, verbose_name=_('Initial Quantity'))
+    initial_quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)],
+                                                   verbose_name=_('Initial Quantity'))
     current_quantity = models.PositiveIntegerField(null=True,blank=True, verbose_name=_('Current Quantity'))
     unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE, verbose_name=_('Unit'))
     note = models.TextField(null=True, blank=True, verbose_name=_('Note'))
@@ -205,7 +206,7 @@ class PackagedMaterial(models.Model):
 
     worker = models.ForeignKey(WorkerUser, on_delete=models.CASCADE, related_name='packed_materials',
                                           verbose_name=_('Worker'))
-    quantity = models.PositiveIntegerField(default=0, verbose_name=_('Quantity'))
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)], verbose_name=_('Quantity'))
     unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE, verbose_name=_('Unit'))
     package_date = models.DateField(null=True, blank=True, verbose_name=_('Package Date'))
     package_type = models.CharField(max_length=20, choices=PackageType.choices, default=PackageType.BOX,
