@@ -3,11 +3,14 @@ from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
 from accounts.enums import UserRole
+from accounts.fields import PrefixedIDField
 from accounts.managers import (CustomUserManager, InventoryCoordinatorUserManager, WorkerUserManager,
                                TransporterUserManager)
 
 
 class User(AbstractUser):
+    id = PrefixedIDField(prefix='USR', verbose_name=_('User ID'))
+
     base_role = UserRole.OTHER
 
     role = models.PositiveSmallIntegerField(choices=UserRole.choices, verbose_name=_('Role'))

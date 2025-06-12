@@ -1,12 +1,14 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from accounts.fields import PrefixedIDField
 from accounts.models import WorkerUser, TransporterUser
 from inventory.enums import Unit
 from inventory.models import RawMaterial, Category
 
 
 class Workstation(models.Model):
+    id = PrefixedIDField(prefix='WS', verbose_name=_('Workstation ID'))
     name = models.CharField(max_length=255, verbose_name=_('Name'))
     description = models.TextField(null=True, blank=True, verbose_name=_('Description'))
     location = models.CharField(max_length=255, verbose_name=_('Location'))
@@ -18,12 +20,16 @@ class Workstation(models.Model):
     class Meta:
         verbose_name = _('Workstation')
         verbose_name_plural = _('Workstations')
+        indexes = [
+            models.Index(fields=['id'], name='ws_id_index')
+        ]
 
     def __str__(self):
         return self.name
 
 
 class Equipment(models.Model):
+    id = PrefixedIDField(prefix='WS-EQ', verbose_name=_('Equipment ID'))
     name = models.CharField(max_length=100, verbose_name=_('Equipment Name'))
     workstation = models.ForeignKey(Workstation, on_delete=models.CASCADE, related_name='equipment')
     last_maintenance_date = models.DateField(null=True, blank=True)
@@ -34,12 +40,17 @@ class Equipment(models.Model):
     class Meta:
         verbose_name = _('Equipment')
         verbose_name_plural = _('Equipment')
+        indexes = [
+            models.Index(fields=['id'], name='eq_id_index')
+        ]
 
     def __str__(self):
-        return f"{self.name}"
+        return self.name
 
 
 class WorkstationRawMaterialConsumption(models.Model):
+    id = PrefixedIDField(prefix='WS-RM', verbose_name=_('Consumption ID'))
+
     workstation = models.ForeignKey(
         Workstation, on_delete=models.CASCADE, related_name='raw_materials', verbose_name=_('Workstation')
     )
@@ -67,13 +78,16 @@ class WorkstationRawMaterialConsumption(models.Model):
     class Meta:
         verbose_name = _('Raw Material Consumption')
         verbose_name_plural = _('Raw Materials Consumption')
+        indexes = [
+            models.Index(fields=['id'], name='ws_rm_id_index')
+        ]
 
     def __str__(self):
-        return f"{self.workstation.name} - {self.raw_material.name}"
-    # TODO: Signal for updating raw material quantity in inventory when consumed
+        return self.id
 
 
 class WorkstationPreparedMaterial(models.Model):
+    id = PrefixedIDField(prefix='WS-PM', verbose_name=_('Prepared Material ID'))
     workstation = models.ForeignKey(Workstation, on_delete=models.CASCADE, related_name='prepared_products',
                                     verbose_name=_('Workstation'))
     raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE, related_name='prepared_products',
@@ -88,3 +102,9 @@ class WorkstationPreparedMaterial(models.Model):
         verbose_name = _('Workstation Prepared Material')
         verbose_name_plural = _('Workstation Prepared Materials')
         unique_together = ('workstation', 'raw_material')
+        indexes = [
+            models.Index(fields=['id'], name='ws_prepared_mat_id_index')
+        ]
+
+    def __str__(self):
+        return self.id

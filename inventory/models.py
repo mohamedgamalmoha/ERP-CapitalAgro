@@ -3,11 +3,13 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+from accounts.fields import PrefixedIDField
 from accounts.models import InventoryCoordinatorUser, TransporterUser, WorkerUser
 from inventory.enums import Unit, Status, PackageType
 
 
 class Supplier(models.Model):
+    id = PrefixedIDField(prefix='SUPPLIER', verbose_name=_('Supplier ID'))
     name = models.CharField(max_length=100, unique=True, verbose_name=_('Supplier Name'))
     contact_info = models.TextField(null=True, blank=True, verbose_name=_('Contact Information'))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
@@ -16,12 +18,16 @@ class Supplier(models.Model):
     class Meta:
         verbose_name = _('Supplier')
         verbose_name_plural = _('Suppliers')
+        indexes = [
+            models.Index(fields=['id'], name='supplier_id_index')
+        ]
 
     def __str__(self):
         return self.name
 
 
 class Category(models.Model):
+    id = PrefixedIDField(prefix='CAT', verbose_name=_('Category ID'))
     name = models.CharField(max_length=100, unique=True, verbose_name=_('Category Name'))
     description = models.TextField(null=True, blank=True, verbose_name=_('Description'))
     requires_temperature_control = models.BooleanField(default=False, verbose_name=_('Requires Temperature Control'))
@@ -34,12 +40,17 @@ class Category(models.Model):
     class Meta:
         verbose_name = _('Category')
         verbose_name_plural = _('Categories')
+        indexes = [
+            models.Index(fields=['id'], name='category_id_index')
+        ]
 
     def __str__(self):
         return self.name
 
 
 class RawMaterial(models.Model):
+    id = PrefixedIDField(prefix='RM', verbose_name=_('Raw Material ID'))
+
     # Supplier and category
     supplier = models.ForeignKey(
         Supplier, on_delete=models.CASCADE, related_name='raw_materials', verbose_name=_('Supplier')
@@ -85,6 +96,9 @@ class RawMaterial(models.Model):
     class Meta:
         verbose_name = _('Raw Material')
         verbose_name_plural = _('Raw Materials')
+        indexes = [
+            models.Index(fields=['id'], name='raw_mat_id_index')
+        ]
 
     def save(self, *args, **kwargs):
         # Set current quantity to initial on first save
@@ -113,6 +127,8 @@ class RawMaterial(models.Model):
 
 
 class ReadyMaterial(models.Model):
+    id = PrefixedIDField(prefix='RM-READY', verbose_name=_('Ready Material ID'))
+
     workstation_raw_material = models.ForeignKey('workstation.WorkstationPreparedMaterial',
                                                  on_delete=models.CASCADE, related_name='ready_materials',
                                                  verbose_name=_('Raw Material'))
@@ -136,8 +152,19 @@ class ReadyMaterial(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
 
+    class Meta:
+        verbose_name = _('Ready Material')
+        verbose_name_plural = _('Ready Materials')
+        indexes = [
+            models.Index(fields=['id'], name='raw_mat_ready_id_index')
+        ]
+
+    def __str__(self):
+        return self.id
+
 
 class PackagedMaterial(models.Model):
+    id = PrefixedIDField(prefix='PM', verbose_name=_('Packaged Material ID'))
     ready_material = models.ForeignKey(ReadyMaterial, on_delete=models.CASCADE, related_name='packed_materials',
                                        verbose_name=_('Ready Material'))
 
@@ -156,5 +183,12 @@ class PackagedMaterial(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
 
+    class Meta:
+        verbose_name = _('Packaged Material')
+        verbose_name_plural = _('Packaged Materials')
+        indexes = [
+            models.Index(fields=['id'], name='pac_mat_id_index')
+        ]
+
     def __str__(self):
-        return self.ready_material
+        return self.id
