@@ -1,4 +1,7 @@
 from django.db import models
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from accounts.fields import PrefixedIDField
@@ -61,7 +64,9 @@ class WorkstationRawMaterialConsumption(models.Model):
     worker = models.ForeignKey(
         WorkerUser, on_delete=models.CASCADE, related_name='workstation_raw_materials', verbose_name=_('Worker')
     )
-    quantity_consumed = models.PositiveIntegerField(verbose_name=_('Quantity Consumed'))
+    quantity_consumed = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)], verbose_name=_('Quantity Consumed')
+    )
     unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE, verbose_name=_('Unit'))
 
     transporter = models.ForeignKey(
@@ -70,7 +75,7 @@ class WorkstationRawMaterialConsumption(models.Model):
         related_name='workstation_delivered_raw_materials',
         verbose_name=_('Transporter')
     )
-    delivery_date = models.DateField(null=True, blank=True, verbose_name=_('Delivery Date'))
+    delivery_date = models.DateTimeField(default=timezone.now, null=True, blank=True, verbose_name=_('Delivery Date'))
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
@@ -82,29 +87,63 @@ class WorkstationRawMaterialConsumption(models.Model):
             models.Index(fields=['id'], name='ws_rm_id_index')
         ]
 
+    def clean(self):
+        # Ensure consumed quantity doesn't exceed available raw material quantity
+        if self.raw_material:
+            if self.quantity_consumed > self.raw_material.current_quantity:
+                raise ValidationError(
+                    {'quantity_consumed': f'Only {self.raw_material.current_quantity} units available.'}
+                )
+            if self.unit != self.raw_material.unit:
+                raise ValidationError(
+                    {'unit': f'Only {self.raw_material.units} unit is acceptable.'}
+                )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.id
 
 
 class WorkstationPreparedMaterial(models.Model):
     id = PrefixedIDField(prefix='WS-PM', verbose_name=_('Prepared Material ID'))
-    workstation = models.ForeignKey(Workstation, on_delete=models.CASCADE, related_name='prepared_products',
-                                    verbose_name=_('Workstation'))
-    raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE, related_name='prepared_products',
-                                     verbose_name=_('Raw Material'))
+    workstation_raw_material_consumption = models.OneToOneField(WorkstationRawMaterialConsumption,
+                                                                 on_delete=models.CASCADE, null=True,
+                                                                verbose_name=_('Workstation Raw Material Consumption'))
     quantity = models.PositiveIntegerField(verbose_name=_('Quantity'))
     unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE, verbose_name=_('Unit'))
-    preparation_date = models.DateField(null=True, blank=True, verbose_name=_('Preparation Date'))
+    preparation_date = models.DateTimeField(default=timezone.now, null=True, blank=True,
+                                            verbose_name=_('Preparation Date'))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
 
     class Meta:
         verbose_name = _('Workstation Prepared Material')
         verbose_name_plural = _('Workstation Prepared Materials')
-        unique_together = ('workstation', 'raw_material')
         indexes = [
             models.Index(fields=['id'], name='ws_prepared_mat_id_index')
         ]
+
+    def clean(self):
+        # Ensure consumed quantity doesn't exceed available raw material quantity
+        if self.workstation_raw_material_consumption:
+            if self.quantity > self.workstation_raw_material_consumption.quantity_consumed:
+                raise ValidationError(
+                    {
+                        'quantity':
+                            f'Only {self.workstation_raw_material_consumption.quantity_consumed} units available.'
+                    }
+                )
+            if self.unit != self.workstation_raw_material_consumption.unit:
+                raise ValidationError(
+                    {'unit': f'Only {self.workstation_raw_material_consumption.units} unit is acceptable.'}
+                )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.id

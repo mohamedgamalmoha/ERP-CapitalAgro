@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import ValidationError, MinValueValidator, MaxValueValidator
 
 from accounts.fields import PrefixedIDField
 from accounts.models import InventoryCoordinatorUser, TransporterUser, WorkerUser
@@ -100,10 +100,25 @@ class RawMaterial(models.Model):
             models.Index(fields=['id'], name='raw_mat_id_index')
         ]
 
+    def clean(self):
+        # Validate expiration date is after production date
+        if self.production_date and self.expiration_date:
+            if self.expiration_date <= self.production_date:
+                raise ValidationError(
+                    {'expiration_date': 'Expiration date must be after production date.'}
+                )
+
+        # Validate current_quantity <= initial_quantity
+        if self.current_quantity > self.initial_quantity:
+            raise ValidationError(
+                {'current_quantity': 'Current quantity cannot exceed initial quantity.'}
+            )
+
     def save(self, *args, **kwargs):
         # Set current quantity to initial on first save
         if not self.pk and not self.current_quantity:
             self.current_quantity = self.initial_quantity
+        self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -129,8 +144,8 @@ class RawMaterial(models.Model):
 class ReadyMaterial(models.Model):
     id = PrefixedIDField(prefix='RM-READY', verbose_name=_('Ready Material ID'))
 
-    workstation_raw_material = models.ForeignKey('workstation.WorkstationPreparedMaterial',
-                                                 on_delete=models.CASCADE, related_name='ready_materials',
+    workstation_prepared_material = models.OneToOneField('workstation.WorkstationPreparedMaterial',
+                                                 on_delete=models.CASCADE, null=True, related_name='ready_materials',
                                                  verbose_name=_('Raw Material'))
 
     inventory_coordinator = models.ForeignKey(InventoryCoordinatorUser, on_delete=models.CASCADE,
@@ -138,7 +153,8 @@ class ReadyMaterial(models.Model):
     quality_score = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(10)],
                                                 verbose_name=_('Quality Score'))
 
-    quantity = models.PositiveIntegerField(default=0, verbose_name=_('Quantity'))
+    initial_quantity = models.PositiveIntegerField(default=0, verbose_name=_('Initial Quantity'))
+    current_quantity = models.PositiveIntegerField(default=0, verbose_name=_('Current Quantity'))
     unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE, verbose_name=_('Unit'))
     note = models.TextField(null=True, blank=True, verbose_name=_('Note'))
 
@@ -147,7 +163,7 @@ class ReadyMaterial(models.Model):
 
     transporter = models.ForeignKey(TransporterUser, on_delete=models.CASCADE, related_name='delivered_ready_materials',
                                 verbose_name=_('Transporter'))
-    delivery_date = models.DateField(null=True, blank=True, verbose_name=_('Delivery Date'))
+    delivery_date = models.DateField(default=timezone.now, null=True, blank=True, verbose_name=_('Delivery Date'))
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
@@ -158,6 +174,25 @@ class ReadyMaterial(models.Model):
         indexes = [
             models.Index(fields=['id'], name='raw_mat_ready_id_index')
         ]
+
+    def clean(self):
+        # Ensure consumed quantity doesn't exceed available raw material quantity
+        if self.workstation_prepared_material:
+            if self.initial_quantity > self.workstation_prepared_material.quantity:
+                raise ValidationError(
+                    {'initial_quantity': f'Only {self.workstation_prepared_material.quantity} units available.'}
+                )
+            if self.unit != self.workstation_prepared_material.unit:
+                raise ValidationError(
+                    {'unit': f'Only {self.workstation_prepared_material.unit} unit is acceptable.'}
+                )
+
+    def save(self, *args, **kwargs):
+        # Set current quantity to initial on first save
+        if not self.pk and not self.current_quantity:
+            self.current_quantity = self.initial_quantity
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.id
@@ -189,6 +224,17 @@ class PackagedMaterial(models.Model):
         indexes = [
             models.Index(fields=['id'], name='pac_mat_id_index')
         ]
+
+    def clean(self):
+        # Ensure packaged quantity doesn't exceed ready material quantity
+        if self.quantity > self.ready_material.current_quantity:
+            raise ValidationError(
+                {'quantity': f'Only {self.ready_material.quantity} units available.'}
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.id
