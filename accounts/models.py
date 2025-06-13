@@ -5,7 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from accounts.enums import UserRole
 from accounts.fields import PrefixedIDField
 from accounts.managers import (CustomUserManager, InventoryCoordinatorUserManager, WorkerUserManager,
-                               TransporterUserManager)
+                               TransporterUserManager, CustomerUserManager)
 
 
 class User(AbstractUser):
@@ -52,6 +52,15 @@ class TransporterUser(User):
     base_role = UserRole.TRANSPORTER
 
     objects = TransporterUserManager()
+
+    class Meta:
+        proxy = True
+
+
+class CustomerUser(User):
+    base_role = UserRole.CUSTOMER
+
+    objects = CustomerUserManager()
 
     class Meta:
         proxy = True

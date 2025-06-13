@@ -7,4 +7,5 @@ class UserRole(models.IntegerChoices):
     INVENTORY_COORDINATOR = 1, _("Inventory Coordinator")
     WORKER = 2, _("Worker")
     TRANSPORTER = 3, _("Transporter")
-    OTHER = 4, _("Other")
+    CUSTOMER = 4, _("Customer")
+    OTHER = 5, _("Other")

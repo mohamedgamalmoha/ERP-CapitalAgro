@@ -40,3 +40,10 @@ class TransporterUserManager(CustomUserManager):
     def get_queryset(self, *args, **kwargs):
         results = super().get_queryset(*args, **kwargs)
         return results.filter(role=UserRole.TRANSPORTER)
+
+
+class CustomerUserManager(CustomUserManager):
+
+    def get_queryset(self, *args, **kwargs):
+        results = super().get_queryset(*args, **kwargs)
+        return results.filter(role=UserRole.CUSTOMER)
