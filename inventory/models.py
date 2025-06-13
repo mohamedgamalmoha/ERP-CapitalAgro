@@ -48,6 +48,34 @@ class Category(models.Model):
         return self.name
 
 
+class Material(models.Model):
+    id = PrefixedIDField(prefix='M', verbose_name=_('Raw Material ID'))
+
+    # Supplier and category
+    suppliers = models.ManyToManyField(
+        Supplier, related_name='materials', verbose_name=_('Supplier')
+    )
+    category = models.ForeignKey(
+        Category, on_delete=models.CASCADE, related_name='materials', verbose_name=_('Category')
+    )
+
+    # Material details
+    material_name = models.CharField(max_length=100, null=True, verbose_name=_('Material Name'))
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
+
+    class Meta:
+        verbose_name = _('Material')
+        verbose_name_plural = _('Materials')
+        indexes = [
+            models.Index(fields=['id'], name='material_id_index')
+        ]
+
+    def __str__(self):
+        return self.material_name
+
+
 class RawMaterial(models.Model):
     id = PrefixedIDField(prefix='RM', verbose_name=_('Raw Material ID'))
 
@@ -55,12 +83,11 @@ class RawMaterial(models.Model):
     supplier = models.ForeignKey(
         Supplier, on_delete=models.CASCADE, related_name='raw_materials', verbose_name=_('Supplier')
     )
-    category = models.ForeignKey(
-        Category, on_delete=models.CASCADE, related_name='raw_materials', verbose_name=_('Category')
+    material = models.ForeignKey(
+        Material, on_delete=models.CASCADE, null=True, related_name='raw_materials', verbose_name=_('Material')
     )
 
     # Material details
-    material_name = models.CharField(max_length=100, null=True, verbose_name=_('Material Name'))
     initial_quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)], verbose_name=_('Initial Quantity'))
     current_quantity = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Current Quantity'))
     unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE, verbose_name=_('Unit'))
@@ -107,12 +134,17 @@ class RawMaterial(models.Model):
                 raise ValidationError(
                     {'expiration_date': 'Expiration date must be after production date.'}
                 )
-
         # Validate current_quantity <= initial_quantity
         if self.current_quantity > self.initial_quantity:
             raise ValidationError(
                 {'current_quantity': 'Current quantity cannot exceed initial quantity.'}
             )
+        # Validate that the raw material supplier is one of the material suppliers
+        if self.material and self.supplier:
+            if not self.material.suppliers.filter(id=self.supplier.id).exists():
+                raise ValidationError(
+                    {'supplier': 'The supplier must be one of the material suppliers.'}
+                )
 
     def save(self, *args, **kwargs):
         # Set current quantity to initial on first save

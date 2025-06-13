@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 
-from inventory.models import Supplier, Category, RawMaterial, ReadyMaterial, PackagedMaterial
+from inventory.models import Supplier, Category, Material, RawMaterial, ReadyMaterial, PackagedMaterial
 
 
 @admin.register(Supplier)
@@ -18,15 +18,31 @@ class CategoryAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at')
 
 
+@admin.register(Material)
+class MaterialAdmin(admin.ModelAdmin):
+    list_display = ('material_name', 'category', 'created_at', 'updated_at')
+    readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        (
+            _("General info"),
+            {"fields": ("category", "suppliers", "material_name")},
+        ),
+        (
+            _("Important dates"),
+            {"fields": ('created_at', 'updated_at')},
+        ),
+    )
+
+
 @admin.register(RawMaterial)
 class RawMaterialAdmin(admin.ModelAdmin):
-    list_display = ('material_name', 'category', 'supplier', 'current_quantity', 'unit', 'created_at', 'updated_at')
+    list_display = ('material', 'supplier', 'current_quantity', 'unit', 'created_at', 'updated_at')
     list_filter = ('unit', 'status')
     readonly_fields = ('current_quantity', 'created_at', 'updated_at')
     fieldsets = (
         (
             _("General info"),
-            {"fields": ("supplier", "category", "material_name", "initial_quantity", "current_quantity", "unit",
+            {"fields": ("supplier", "material", "initial_quantity", "current_quantity", "unit",
                         "received_date", "production_date", "expiration_date")},
         ),
         (
