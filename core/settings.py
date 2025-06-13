@@ -42,7 +42,8 @@ INSTALLED_APPS = [
     'accounts',
     'inventory',
     'workstation',
-    'restaurant'
+    'restaurant',
+    'orders'
 ]
 
 MIDDLEWARE = [
