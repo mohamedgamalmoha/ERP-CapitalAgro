@@ -12,7 +12,7 @@ class RestaurantAdmin(admin.ModelAdmin):
 
 @admin.register(RestaurantPackagedMaterial)
 class RestaurantPackagedMaterialAdmin(admin.ModelAdmin):
-    list_display = ('restaurant', 'initial_package_quantity', 'unit', 'created_at', 'updated_at')
+    list_display = ('restaurant', 'current_package_quantity', 'unit', 'created_at', 'updated_at')
     list_filter = ('unit',)
     readonly_fields = ('current_package_quantity', 'finished_date', 'created_at', 'updated_at')
     fieldsets = (
