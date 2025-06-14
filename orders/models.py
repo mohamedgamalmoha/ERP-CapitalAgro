@@ -10,6 +10,8 @@ from orders.enums import OrderStatus
 
 class Order(models.Model):
     id = PrefixedIDField(prefix='ORD', verbose_name=_('Order ID'))
+    restaurant = models.ForeignKey('restaurant.Restaurant', on_delete=models.CASCADE, null=True,
+                                   related_name='orders', verbose_name=_('Restaurant'))
     customer = models.ForeignKey(CustomerUser, on_delete=models.CASCADE, blank=True, related_name='orders',
                                  verbose_name=_('Customer'))
     status = models.CharField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING,
