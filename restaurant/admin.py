@@ -42,13 +42,15 @@ class ProductCategoryAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at')
 
 
+class RecipeIngredientInlineAdmin(admin.StackedInline):
+    model = RecipeIngredient
+    extra = 1
+    readonly_fields = ('created_at', 'updated_at')
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = ('name', 'category', 'is_available', 'created_at', 'updated_at')
     list_filter = ('is_available', )
     readonly_fields = ('created_at', 'updated_at')
-
-
-@admin.register(RecipeIngredient)
-class RecipeIngredientAdmin(admin.ModelAdmin):
-    list_display = ('product', 'material', 'created_at', 'updated_at')
+    inlines = [RecipeIngredientInlineAdmin]
