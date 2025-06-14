@@ -15,7 +15,7 @@ class Order(models.Model):
                                    related_name='orders', verbose_name=_('Restaurant'))
     customer = models.ForeignKey(CustomerUser, on_delete=models.CASCADE, blank=True, related_name='orders',
                                  verbose_name=_('Customer'))
-    status = models.CharField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING,
+    status = models.PositiveIntegerField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING,
                               verbose_name=_('Status'))
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name=_('Total Amount'))
     order_date = models.DateTimeField(default=timezone.now, blank=True, null=True, verbose_name=_('Order Date'))
@@ -181,7 +181,7 @@ class OrderItem(models.Model):
             if available_quantity < required_quantity:
                 try:
                     material = Material.objects.get(id=material_id)
-                    material_name = material.name
+                    material_name = material.material_name
                 except Material.DoesNotExist:
                     material_name = f"Material ID {material_id}"
 
