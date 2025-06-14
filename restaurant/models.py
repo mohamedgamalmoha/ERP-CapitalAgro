@@ -32,6 +32,7 @@ class RestaurantPackagedMaterial(models.Model):
 
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, null=True,
                                    related_name='restaurant_package_materials', verbose_name=_('Restaurant'))
+    material = models.ForeignKey('inventory.Material', on_delete=models.CASCADE, verbose_name=_('Material'))
     package_material = models.OneToOneField('inventory.PackagedMaterial', on_delete=models.CASCADE, null=True,
                                             verbose_name=_('Package Material'))
     initial_package_quantity = models.PositiveIntegerField(
@@ -78,6 +79,34 @@ class RestaurantPackagedMaterial(models.Model):
             self.finished_date = timezone.now()
         self.clean()
         super().save(*args, **kwargs)
+
+
+class RestaurantPackagedMaterialConsumption(models.Model):
+    id = PrefixedIDField(prefix='CONS', verbose_name=_('Consumption ID'))
+
+    order_item = models.ForeignKey('orders.OrderItem', on_delete=models.CASCADE,
+                                   related_name='material_consumptions', verbose_name=_('Order Item'))
+    restaurant_package_material = models.ForeignKey(RestaurantPackagedMaterial, on_delete=models.CASCADE,
+                                                     verbose_name=_('Restaurant Package Material'))
+    material = models.ForeignKey('inventory.Material', on_delete=models.CASCADE, verbose_name=_('Material'))
+
+    quantity_consumed = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+        verbose_name=_('Quantity Consumed')
+    )
+    consumption_date = models.DateTimeField(default=timezone.now, null=True, blank=True,
+                                            verbose_name=_('Consumption Date'))
+    notes = models.TextField(blank=True, verbose_name=_('Notes'))
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
+
+    class Meta:
+        verbose_name = _('Material Consumption')
+        verbose_name_plural = _('Material Consumptions')
+        indexes = [
+            models.Index(fields=['id'], name='cons_id_index')
+        ]
 
 
 class ProductCategory(models.Model):
