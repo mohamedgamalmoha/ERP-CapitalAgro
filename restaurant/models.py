@@ -75,10 +75,20 @@ class RestaurantPackagedMaterial(models.Model):
 
     def save(self, *args, **kwargs):
         # Change finished date when it is totally consumed
-        if self.current_package_quantity and self.current_package_quantity == self.initial_package_quantity:
-            self.finished_date = timezone.now()
+        if not self.pk and self.current_package_quantity is None:
+            self.current_package_quantity = self.initial_package_quantity
         self.clean()
         super().save(*args, **kwargs)
+
+    def reduce_current_package_quantity(self, quantity: int) -> None:
+        if quantity > self.current_package_quantity:
+            raise ValidationError(
+                {'current_package_quantity': _('Not enough quantity')}
+            )
+        self.current_package_quantity -= quantity
+        if self.current_package_quantity == 0:
+            self.finished_date = timezone.now()
+        self.save()
 
 
 class RestaurantPackagedMaterialConsumption(models.Model):
