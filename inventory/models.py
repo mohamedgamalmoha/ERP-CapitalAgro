@@ -154,7 +154,7 @@ class RawMaterial(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.material_name
+        return self.material.material_name
 
     def reduce_quantity(self, quantity):
         if quantity > self.current_quantity:
