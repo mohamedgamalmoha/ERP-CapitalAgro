@@ -18,12 +18,8 @@ class RestaurantPackagedMaterialAdmin(admin.ModelAdmin):
     fieldsets = (
         (
             _("General info"),
-            {"fields": ("restaurant", "package_material", "initial_package_quantity", "current_package_quantity",
-                        "unit", "production_date", "expiration_date")},
-        ),
-        (
-            _("Coordinator info"),
-            {"fields": ("inventory_coordinator", "quality_score", "note")},
+            {"fields": ("restaurant", "material", "package_material", "initial_package_quantity",
+                        "current_package_quantity", "unit", "production_date", "expiration_date")},
         ),
         (
             _("Storage info"),
