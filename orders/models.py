@@ -6,7 +6,9 @@ from django.core.validators import ValidationError, MinValueValidator
 
 from accounts.fields import PrefixedIDField
 from accounts.models import CustomerUser
-from orders.enums import OrderStatus
+from orders.enums import (OrderStatus, ORDER_STATUS_SEQUENCE, ORDER_STATUS_APPLY_CONSUMPTION,
+                          ORDER_STATUS_AVAILABILITY_CHECK, ORDER_STATUS_APPLY_RESTORATION,
+                          ORDER_STATUS_DENY_ITEMS_MODIFICATION)
 
 
 class Order(models.Model):
@@ -15,9 +17,10 @@ class Order(models.Model):
                                    related_name='orders', verbose_name=_('Restaurant'))
     customer = models.ForeignKey(CustomerUser, on_delete=models.CASCADE, blank=True, related_name='orders',
                                  verbose_name=_('Customer'))
-    status = models.PositiveIntegerField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING,
+    status = models.PositiveIntegerField(choices=OrderStatus.choices, default=OrderStatus.PENDING,
                               verbose_name=_('Status'))
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name=_('Total Amount'))
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                       verbose_name=_('Total Amount'))
     order_date = models.DateTimeField(default=timezone.now, blank=True, null=True, verbose_name=_('Order Date'))
     delivered_date = models.DateTimeField(blank=True, null=True, verbose_name=_('Delivered Date'))
     note = models.TextField(null=True, blank=True, verbose_name=_('Note'))
@@ -32,8 +35,35 @@ class Order(models.Model):
         ]
 
     def clean(self):
-        if self.status in [OrderStatus.CONFIRMED, OrderStatus.PREPARING, OrderStatus.DELIVERED]:
+        # Check if this is an existing instance to validate status transitions
+        try:
+            old_instance = Order.objects.get(pk=self.pk)
+            old_status = old_instance.status
+        except Order.DoesNotExist:  # New instance, no validation needed
+            return
+
+         # Check if status transition is valid
+        if not self.is_valid_status_transition(old_status, self.status):
+            old_status_display = OrderStatus(old_status).label
+            new_status_display = OrderStatus(self.status).label
+            raise ValidationError({
+                'status': _(
+                    f"Invalid status transition from '{old_status_display}' to '{new_status_display}'."
+                )
+            })
+
+        # Validate that the order has a restaurant and customer
+        if self.is_valid_status_availability_check(self.status):
             self.validate_ingredient_availability()
+
+        # Check if ingredients should be consumed based on status change
+        if self.is_valid_status_consumption(old_status, self.status):
+            self.validate_ingredient_availability()
+            self.consume_order_ingredients()
+
+        # Check if ingredients should be restored based on status change
+        if self.is_valid_status_restoration(old_status, self.status):
+            self.restore_order_ingredients()
 
     def save(self, *args, **kwargs):
         self.clean()
@@ -117,6 +147,37 @@ class Order(models.Model):
             ]
         ).delete()
 
+    @staticmethod
+    def is_valid_status_transition(from_status: ORDER_STATUS_SEQUENCE, to_status: OrderStatus) -> bool:
+        """
+        Check if a status transition is valid according to ORDER_STATUS_SEQUENCE.
+        """
+        # Allow keeping the same status
+        if from_status == to_status:
+            return True
+
+        # Check if the transition is allowed
+        allowed_transitions = ORDER_STATUS_SEQUENCE.get(from_status, [])
+        return to_status in allowed_transitions
+
+    @staticmethod
+    def is_valid_status_availability_check(status: OrderStatus) -> bool:
+        """
+        Check if the status is valid for availability checks.
+        """
+        return status in ORDER_STATUS_AVAILABILITY_CHECK
+
+    @staticmethod
+    def is_valid_status_consumption(from_status: ORDER_STATUS_SEQUENCE, to_status: OrderStatus) -> bool:
+        return to_status in ORDER_STATUS_APPLY_CONSUMPTION.get(from_status, [])
+
+    @staticmethod
+    def is_valid_status_restoration(from_status: ORDER_STATUS_SEQUENCE, to_status: OrderStatus) -> bool:
+        """
+        Check if a status restoration is valid according to ORDER_STATUS_APPLY_RESTORATION.
+        """
+        return to_status in ORDER_STATUS_APPLY_RESTORATION.get(from_status, [])
+
 
 class OrderItem(models.Model):
     id = PrefixedIDField(prefix='ORD-ITM', verbose_name=_('Order Item ID'))
@@ -135,9 +196,33 @@ class OrderItem(models.Model):
     class Meta:
         verbose_name = _('Order Item')
         verbose_name_plural = _('Order Items')
+        unique_together = ('order', 'product')
         indexes = [
             models.Index(fields=['id'], name='ord_itm_id_index')
         ]
+
+    def clean(self):
+        # Deny creation or updated when order os ready or prepared
+        # if self.order and not self.is_valid_items_modification(self.order.status):
+        #     raise ValidationError(
+        #         _('Cannot modify order items when order is ready or preparing.')
+        #     )
+
+        # Validate ingredient availability for new order items or quantity changes
+        if self.order and self.order.restaurant:
+            ingredient_errors = self.validate_ingredient_availability()
+            if ingredient_errors:
+                raise ValidationError({
+                    'quantity': _('Insufficient ingredients available: ') + '; '.join(ingredient_errors)
+                })
+
+    def save(self, *args, **kwargs):
+        if self.unit_price is None:
+            self.unit_price = self.product.selling_price
+        if self.total_price is None:
+            self.total_price = self.quantity * self.unit_price
+        self.clean()
+        super().save(*args, **kwargs)
 
     def get_required_ingredients(self):
         """
@@ -161,6 +246,28 @@ class OrderItem(models.Model):
                 required_ingredients[material_id] = required_quantity
 
         return required_ingredients
+
+    def get_available_material_quantity(self, material_id):
+        """
+        Get the total available quantity for a specific material in the restaurant.
+        This includes all non-expired materials minus any reserved quantities.
+        """
+        from restaurant.models import RestaurantPackagedMaterial
+
+        # Get all restaurant packaged materials for this material that are not expired
+        restaurant_materials = RestaurantPackagedMaterial.objects.filter(
+            restaurant__id=self.order.restaurant.id,
+            material__id=material_id,
+            current_package_quantity__gt=0
+        )
+
+        # Calculate total available quantity
+        total_available = sum(
+            rpm.current_package_quantity
+            for rpm in restaurant_materials
+        )
+
+        return total_available
 
     def validate_ingredient_availability(self):
         """
@@ -191,56 +298,7 @@ class OrderItem(models.Model):
 
         return errors
 
-    def get_available_material_quantity(self, material_id):
-        """
-        Get the total available quantity for a specific material in the restaurant.
-        This includes all non-expired materials minus any reserved quantities.
-        """
-        from restaurant.models import RestaurantPackagedMaterial
-
-        # Get all restaurant packaged materials for this material that are not expired
-        restaurant_materials = RestaurantPackagedMaterial.objects.filter(
-            restaurant=self.order.restaurant,
-            material_id=material_id,
-            current_package_quantity__gt=0
-        ).filter(
-            models.Q(expiration_date__isnull=True) |
-            models.Q(expiration_date__gt=timezone.now().date())
-        )
-
-        # Calculate total available quantity
-        total_available = sum(
-            rpm.current_package_quantity or rpm.initial_package_quantity
-            for rpm in restaurant_materials
-        )
-
-        # Subtract quantities already reserved by other pending/confirmed orders
-        reserved_quantity = self.get_reserved_material_quantity(material_id)
-
-        return max(0, total_available - reserved_quantity)
-
-    def get_reserved_material_quantity(self, material_id):
-        """
-        Calculate the quantity of a material that is already reserved by other orders.
-        This includes orders that are pending, confirmed, or in progress.
-        """
-        reserved_statuses = [OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.PREPARING]
-
-        # Get all other order items for the same restaurant and material
-        other_order_items = OrderItem.objects.filter(
-            order__restaurant=self.order.restaurant,
-            order__status__in=reserved_statuses,
-            product__recipe_ingredients__material_id=material_id
-        ).exclude(id=self.id if self.id else None)
-
-        total_reserved = 0
-        for order_item in other_order_items:
-            required_ingredients = order_item.get_required_ingredients()
-            if material_id in required_ingredients:
-                total_reserved += required_ingredients[material_id]
-
-        return total_reserved
-
+    @transaction.atomic
     def consume_ingredients(self):
         """
         Consume the ingredients required for this order item.
@@ -255,51 +313,33 @@ class OrderItem(models.Model):
 
             # Get available materials sorted by expiration date (FIFO)
             available_materials = RestaurantPackagedMaterial.objects.filter(
-                restaurant=self.order.restaurant,
-                material_id=material_id,
+                restaurant__id=self.order.restaurant.id,
+                material__id=material_id,
                 current_package_quantity__gt=0
-            ).filter(
-                models.Q(expiration_date__isnull=True) |
-                models.Q(expiration_date__gt=timezone.now().date())
             ).order_by('expiration_date', 'created_at')
 
             for material in available_materials:
                 if remaining_to_consume <= 0:
                     break
 
-                current_qty = material.current_package_quantity or material.initial_package_quantity
-                consume_qty = min(remaining_to_consume, current_qty)
+                consumed_quantity = remaining_to_consume
+                try:
+                    material.reduce_current_package_quantity(quantity=consumed_quantity)
+                except ValidationError:
+                    consumed_quantity = material.current_package_quantity
+                    material.reduce_current_package_quantity(quantity=consumed_quantity)
+                finally:
+                    remaining_to_consume -= consumed_quantity
+                    RestaurantPackagedMaterialConsumption.objects.create(
+                        order_item=self,
+                        restaurant_package_material=material,
+                        material=material.material,
+                        quantity_consumed=consumed_quantity,
+                    )
 
-                # Create consumption record
-                RestaurantPackagedMaterialConsumption.objects.create(
-                    order_item=self,
-                    restaurant_package_material=material,
-                    material_id=material_id,
-                    quantity_consumed=consume_qty,
-                    consumption_date=timezone.now()
-                )
-
-                # Update the material quantity
-                material.current_package_quantity = current_qty - consume_qty
-                if material.current_package_quantity == 0:
-                    material.finished_date = timezone.now().date()
-                material.save()
-
-                remaining_to_consume -= consume_qty
-
-    def clean(self):
-        # Validate ingredient availability for new order items or quantity changes
-        if self.order and self.order.restaurant:
-            ingredient_errors = self.validate_ingredient_availability()
-            if ingredient_errors:
-                raise ValidationError({
-                    'quantity': _('Insufficient ingredients available: ') + '; '.join(ingredient_errors)
-                })
-
-    def save(self, *args, **kwargs):
-        if self.unit_price is None:
-            self.unit_price = self.product.selling_price
-        if self.total_price is None:
-            self.total_price = self.quantity * self.unit_price
-        self.clean()
-        super().save(*args, **kwargs)
+    @staticmethod
+    def is_valid_items_modification(order_status: OrderStatus) -> bool:
+        """
+        Check if items can be modified based on the order status.
+        """
+        return order_status not in ORDER_STATUS_DENY_ITEMS_MODIFICATION
