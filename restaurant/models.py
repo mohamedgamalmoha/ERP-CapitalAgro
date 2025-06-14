@@ -53,7 +53,7 @@ class RestaurantPackagedMaterial(models.Model):
     storage_location = models.CharField(max_length=100, null=True, blank=True, verbose_name=_('Stored Location'))
     storage_temperature = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Stored Temperature'))
 
-    finished_date = models.DateField(null=True, blank=True, verbose_name=_('Delivery Date'))
+    finished_date = models.DateTimeField(null=True, blank=True, verbose_name=_('Delivery Date'))
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
