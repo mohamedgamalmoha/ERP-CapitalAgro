@@ -1,7 +1,8 @@
-asgiref==3.8.1
-Django==5.2.2
-django-jazzmin==3.0.1
-factory_boy==3.3.3
-Faker==37.3.0
-sqlparse==0.5.3
-tzdata==2025.2
+asgiref
+Django
+django-jazzmin
+factory_boy
+Faker
+sqlparse
+tzdata
+typing_extensions>=4.0.0
