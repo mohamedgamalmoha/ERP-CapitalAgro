@@ -59,11 +59,6 @@ class Order(models.Model):
         # Check if ingredients should be consumed based on status change
         if self.is_valid_status_consumption(old_status, self.status):
             self.validate_ingredient_availability()
-            self.consume_order_ingredients()
-
-        # Check if ingredients should be restored based on status change
-        if self.is_valid_status_restoration(old_status, self.status):
-            self.restore_order_ingredients()
 
     def save(self, *args, **kwargs):
         self.clean()
