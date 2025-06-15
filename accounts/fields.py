@@ -1,5 +1,5 @@
 import uuid
-from typing import Self
+from typing_extensions import Self
 from datetime import datetime
 
 from django.db import models
