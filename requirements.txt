@@ -6,3 +6,4 @@ Faker
 sqlparse
 tzdata
 typing_extensions
+python-dotenv
