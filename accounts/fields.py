@@ -1,6 +1,9 @@
 import uuid
-from typing_extensions import Self
 from datetime import datetime
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 
 from django.db import models
 
