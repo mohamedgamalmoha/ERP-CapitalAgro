@@ -135,10 +135,11 @@ class RawMaterial(models.Model):
                     {'expiration_date': 'Expiration date must be after production date.'}
                 )
         # Validate current_quantity <= initial_quantity
-        if self.current_quantity > self.initial_quantity:
-            raise ValidationError(
-                {'current_quantity': 'Current quantity cannot exceed initial quantity.'}
-            )
+        if self.current_quantity and self.initial_quantity:
+            if self.current_quantity > self.initial_quantity:
+                raise ValidationError(
+                    {'current_quantity': 'Current quantity cannot exceed initial quantity.'}
+                )
         # Validate that the raw material supplier is one of the material suppliers
         if self.material and self.supplier:
             if not self.material.suppliers.filter(id=self.supplier.id).exists():
