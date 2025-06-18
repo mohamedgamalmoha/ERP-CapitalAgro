@@ -1,0 +1,406 @@
+<!-- templates/admin/supply_chain_hierarchy.html -->
+{% extends "admin/base_site.html" %}
+{% load admin_urls static admin_list %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <style>
+        .supply-chain-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .search-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #dee2e6;
+        }
+
+        .search-form input[type="text"] {
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 16px;
+            width: 200px;
+            margin-right: 10px;
+        }
+
+        .search-form button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .search-form button:hover {
+            background-color: #0056b3;
+        }
+
+        .hierarchy-chain {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .chain-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f1f3f4;
+            position: relative;
+        }
+
+        .chain-item:last-child {
+            border-bottom: none;
+        }
+
+        .chain-item::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(to bottom, #007bff, #28a745);
+        }
+
+        .chain-item.order-item::before { background-color: #dc3545; }
+        .chain-item.consumption::before { background-color: #fd7e14; }
+        .chain-item.restaurant-material::before { background-color: #ffc107; }
+        .chain-item.package-material::before { background-color: #20c997; }
+        .chain-item.ready-material::before { background-color: #6f42c1; }
+        .chain-item.workstation-material::before { background-color: #e83e8c; }
+        .chain-item.raw-consumption::before { background-color: #6610f2; }
+        .chain-item.raw-material::before { background-color: #17a2b8; }
+        .chain-item.supplier::before { background-color: #28a745; }
+
+        .chain-title {
+            font-weight: bold;
+            font-size: 16px;
+            color: #495057;
+            margin-bottom: 8px;
+            margin-left: 15px;
+        }
+
+        .item-details {
+            margin-left: 15px;
+            color: #6c757d;
+        }
+
+        .detail-row {
+            display: flex;
+            margin-bottom: 5px;
+        }
+
+        .detail-label {
+            font-weight: 500;
+            min-width: 100px;
+            color: #495057;
+        }
+
+        .detail-value {
+            flex: 1;
+        }
+
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #f5c6cb;
+            margin-bottom: 20px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .chain-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            margin-right: 6px;
+        }
+
+        .order-summary {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196f3;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="supply-chain-container">
+    <h1>{{ title }}</h1>
+
+    <!-- Search Form -->
+    <div class="search-form">
+        <form method="get">
+            <label for="order_item_id"><strong>Order Item ID:</strong></label>
+            <input type="text"
+                   id="order_item_id"
+                   name="order_item_id"
+                   value="{{ order_item_id|default:'' }}"
+                   placeholder="Enter Order Item ID">
+            <button type="submit">Search Supply Chain</button>
+        </form>
+    </div>
+
+    {% if error %}
+        <div class="error-message">
+            <strong>Error:</strong> {{ error }}
+        </div>
+    {% endif %}
+
+    {% if hierarchy_data %}
+        <!-- Order Summary -->
+        <div class="order-summary">
+            <h3>Order Item #{{ hierarchy_data.order_item.id }}</h3>
+            <p><strong>Item:</strong> {{ hierarchy_data.order_item.name }}</p>
+            {% for key, value in hierarchy_data.order_item.details.items %}
+                <p><strong>{{ key|title }}:</strong> {{ value }}</p>
+            {% endfor %}
+        </div>
+
+        <!-- Legend -->
+        <div class="chain-legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #dc3545;"></div>
+                Order Item
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #fd7e14;"></div>
+                Consumption
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ffc107;"></div>
+                Restaurant Material
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #20c997;"></div>
+                Package Material
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #6f42c1;"></div>
+                Ready Material
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #e83e8c;"></div>
+                Workstation Material
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #17a2b8;"></div>
+                Raw Material
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #28a745;"></div>
+                Supplier
+            </div>
+        </div>
+
+        <!-- Material Chains -->
+        {% for chain in hierarchy_data.material_chains %}
+            <div class="hierarchy-chain">
+                <h4 style="padding: 15px 20px; margin: 0; background: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                    Material Chain #{{ forloop.counter }}
+                </h4>
+
+                {% if chain.error %}
+                    <div class="chain-item">
+                        <div class="error-message">{{ chain.error }}</div>
+                    </div>
+                {% else %}
+                    <!-- Consumption -->
+                    <div class="chain-item consumption">
+                        <div class="chain-title">Material Consumption</div>
+                        <div class="item-details">
+                            <div class="detail-row">
+                                <span class="detail-label">ID:</span>
+                                <span class="detail-value">{{ chain.consumption.id }}</span>
+                            </div>
+                            {% for key, value in chain.consumption.details.items %}
+                                <div class="detail-row">
+                                    <span class="detail-label">{{ key|title }}:</span>
+                                    <span class="detail-value">{{ value }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Restaurant Package Material -->
+                    {% if chain.restaurant_package_material %}
+                    <div class="chain-item restaurant-material">
+                        <div class="chain-title">Restaurant Package Material</div>
+                        <div class="item-details">
+                            <div class="detail-row">
+                                <span class="detail-label">ID:</span>
+                                <span class="detail-value">{{ chain.restaurant_package_material.id }}</span>
+                            </div>
+                            {% for key, value in chain.restaurant_package_material.details.items %}
+                                <div class="detail-row">
+                                    <span class="detail-label">{{ key|title }}:</span>
+                                    <span class="detail-value">{{ value }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Package Material -->
+                    {% if chain.package_material %}
+                    <div class="chain-item package-material">
+                        <div class="chain-title">Package Material</div>
+                        <div class="item-details">
+                            <div class="detail-row">
+                                <span class="detail-label">ID:</span>
+                                <span class="detail-value">{{ chain.package_material.id }}</span>
+                            </div>
+
+                            {% for key, value in chain.package_material.details.items %}
+                                <div class="detail-row">
+                                    <span class="detail-label">{{ key|title }}:</span>
+                                    <span class="detail-value">{{ value }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Ready Material -->
+                    {% if chain.ready_material %}
+                    <div class="chain-item ready-material">
+                        <div class="chain-title">Ready Material</div>
+                        <div class="item-details">
+                            <div class="detail-row">
+                                <span class="detail-label">ID:</span>
+                                <span class="detail-value">{{ chain.ready_material.id }}</span>
+                            </div>
+                            {% for key, value in chain.ready_material.details.items %}
+                                <div class="detail-row">
+                                    <span class="detail-label">{{ key|title }}:</span>
+                                    <span class="detail-value">{{ value }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Workstation Prepared Material -->
+                    {% if chain.workstation_prepared_material %}
+                    <div class="chain-item workstation-material">
+                        <div class="chain-title">Workstation Prepared Material</div>
+                        <div class="item-details">
+                            <div class="detail-row">
+                                <span class="detail-label">ID:</span>
+                                <span class="detail-value">{{ chain.workstation_prepared_material.id }}</span>
+                            </div>
+                            {% for key, value in chain.workstation_prepared_material.details.items %}
+                                <div class="detail-row">
+                                    <span class="detail-label">{{ key|title }}:</span>
+                                    <span class="detail-value">{{ value }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Raw Material Consumption -->
+                    {% if chain.workstation_raw_material_consumption %}
+                    <div class="chain-item raw-consumption">
+                        <div class="chain-title">Raw Material Consumption</div>
+                        <div class="item-details">
+                            <div class="detail-row">
+                                <span class="detail-label">ID:</span>
+                                <span class="detail-value">{{ chain.workstation_raw_material_consumption.id }}</span>
+                            </div>
+                            {% for key, value in chain.workstation_raw_material_consumption.details.items %}
+                                <div class="detail-row">
+                                    <span class="detail-label">{{ key|title }}:</span>
+                                    <span class="detail-value">{{ value }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Raw Material -->
+                    {% if chain.raw_material %}
+                    <div class="chain-item raw-material">
+                        <div class="chain-title">Raw Material</div>
+                        <div class="item-details">
+                            <div class="detail-row">
+                                <span class="detail-label">ID:</span>
+                                <span class="detail-value">{{ chain.raw_material.id }}</span>
+                            </div>
+                            {% for key, value in chain.raw_material.details.items %}
+                                <div class="detail-row">
+                                    <span class="detail-label">{{ key|title }}:</span>
+                                    <span class="detail-value">{{ value }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Supplier -->
+                    {% if chain.supplier %}
+                    <div class="chain-item supplier">
+                        <div class="chain-title">Supplier</div>
+                        <div class="item-details">
+                            <div class="detail-row">
+                                <span class="detail-label">ID:</span>
+                                <span class="detail-value">{{ chain.supplier.id }}</span>
+                            </div>
+                            {% for key, value in chain.supplier.details.items %}
+                                <div class="detail-row">
+                                    <span class="detail-label">{{ key|title }}:</span>
+                                    <span class="detail-value">{{ value }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% elif order_item_id %}
+        <div class="no-data">
+            No supply chain data found for Order Item ID: {{ order_item_id }}
+        </div>
+    {% else %}
+        <div class="no-data">
+            Enter an Order Item ID above to view its supply chain hierarchy.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
